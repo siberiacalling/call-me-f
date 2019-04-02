@@ -64,7 +64,7 @@ int main() {
   ThreadContext threads_contexts[billets_amount];
 
   queues = (StsHeader **) malloc(billets_amount * sizeof(StsHeader *));
-  for (int i = 0; i < rows_amount; i++)
+  for (int i = 0; i < billets_amount; i++)
     queues[i] = StsQueue.create();
 
   int billets[billets_amount];
