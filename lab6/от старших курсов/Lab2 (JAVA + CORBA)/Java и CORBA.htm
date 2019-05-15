@@ -1,0 +1,578 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0040)http://fedoruk.comcor.ru/java+corba.html -->
+<HTML><HEAD><TITLE>Java и CORBA</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=koi8-r">
+<META content="MSHTML 6.00.2900.2180" name=GENERATOR></HEAD>
+<BODY>
+<CENTER>
+<H3>Московский Государственный Технический Университет</H3></CENTER>
+<CENTER><B>имени Н.Э.Баумана</B></CENTER>
+<CENTER>
+<H3>Кафедра САПР</H3></CENTER>
+<HR width="100%">
+
+<CENTER><B>Лабораторная работа</B><BR>
+<H3>Разработка распределенного приложения на базе CORBA средствами языка 
+программирования Java</H3></CENTER>
+<DIV align=right><B>Федорук В.Г.</B></DIV>
+<P>Цель работы: начальное ознакомление с архитектурой брокера объектных запросов 
+CORBA и разработка простого распределенного приложения на основе CORBA 
+средствами языка программирования Java. </P>
+<CENTER>
+<H4>Теоретическая часть</H4></CENTER>
+<P>CORBA (Common Object Request Broker Architecture) - многофункциональная, 
+гибкая и достаточно сложная система, позволяющая создавать и выполнять 
+масштабируемые распределенные приложения с использованием различных языков 
+программирования. Ниже дается самое начальное описание базовых средств CORBA. 
+</P>
+<P>Взаимодействие распределенных объектов имеет две стороны - клиента и сервера. 
+Сервер обеспечивает удаленный интерфейс, а клиент вызывает этот интерфейс. При 
+этом любой объект может быть клиентом, использующим удаленный объект как сервер, 
+и одновременно выступать в роли сервера для третьего объекта. </P>
+<P>Процесс разработки распределенного приложения на языке Java с использованием 
+технологии CORBA включает в себя следующие шаги. 
+<UL>
+  <LI>Описание интерфейса удаленного объекта с помощью языка IDL (Interface 
+  Definition Langauge). 
+  <LI>Обработка описания интерфейса на языке IDL компилятором idlj. В результате 
+  будут сгенерированы файлы, содержащие Java-версию описания интерфейса и код 
+  классов для программных прослоек, называемых stub на стороне клиента и 
+  skeleton (каркас) на стороне сервера. Эти программные прослойки обеспечивают 
+  подключение к ORB (Object Request Broker). 
+  <LI>Программирование сервера. Его код включает в себя сгенерированный 
+  компилятором idlj код skeleton'ов, реализацию методов интерфейса, код запуска 
+  ORB и ожидания обращений от клиентов. 
+  <LI>Программирование клиента на основе сгенерированного компилятором idlj кода 
+  stub'ов. Клиент стартует свой ORB, отыскивает нужный ему сервер, используя 
+  службу имен, получает ссылку на удаленный объект и вызывает его методы. 
+  <LI>Запуск приложения путем последовательного старта службы имен, сервера и 
+  клиента. </LI></UL>
+<P></P>
+<CENTER>
+<H4>Пример простого приложения "клиент-сервер" </H4></CENTER>
+<CENTER><B>Создание описания интерфейса на языке IDL </B></CENTER>
+<P>IDL - декларативный язык для формального описания интерфейсов взаимодейстия 
+клиентов и серверов в распределенных приложениях. IDL не привязан к какому-либо 
+языку программирования, но для большинства современных языков программирования 
+существуют спецификации, определяющие правила трансляции конструкций IDL в 
+конструкции этих языков. </P>
+<P>Ниже приведен пример описания интерфейса для приложения Hello (в файле 
+Hello.idl каталога Hello). <PRE>module HelloApp {
+  interface Hello {
+    string sayHello();
+    oneway void shutdown();
+    };
+  };
+</PRE>
+<P></P>
+<P>Конструкция module определяет пространство имен в котором будут существовать 
+включенные в нее интерфейсы. Эта конструкция по своему смыслу близка понятию 
+"пакет" (package) языка Java. </P>
+<P>Конструкция interface определяет программный интерфейс, с помощью которого 
+объекты общаются друг с другом. В этом интерфейсы языков IDL и Java аналогичны. 
+</P>
+<P>В теле конструкции interface объявляются <I>операции</I>, которые должен быть 
+способен выполнять сервер по запросу клиента. Операции языка IDL соответствуют 
+методам языка Java. </P>
+<P>Для компиляции файла с IDL-описанием используется следующая команда: <PRE>idlj -fall Hello.idl
+</PRE>
+<P></P>
+<P>В результате создается подкаталог с именем HelloApp (имя из конструкции 
+module) в каталоге Hello, содержащий 6 файлов: Hello.java, HelloPOA.java, 
+_HelloStub.java, HelloOperations.java, HelloHelper.java, HelloHolder.java. 
+<UL>
+  <LI>Hello.java содержит код Java-интерфейса Hello, сгенерированный из 
+  IDL-интерфейса. Интерфейс Hello расширяет интерфейсы HelloOperations, 
+  org.omg.CORBA.Object и org.omg.CORBA.portable.IDLEntity. 
+  <LI>HelloOperations.java содержит код Java-интерфейса HelloOperations, 
+  объявляющего два метода sayHello() и shutdown(), соответствующих операциям 
+  языка IDL. Интерфейс HelloOperations используется stub'ами клиентов и 
+  skeleton'ами серверов. 
+  <LI>HelloPOA.java содержит код абстрактного класса HelloPOA, расширяющего 
+  класс org.omg.PortableServer.Servant и реализующего интерфейсы 
+  HelloApp.HelloOperations, org.omg.CORBA.portable.InvokeHandler. Класс HelloPOA 
+  является skeleton'ом и обеспечивает базовую функциональность CORBA для 
+  сервера. 
+  <LI>_HelloStub.java содержит код класса _HelloStub, расширяющего класс 
+  org.omg.CORBA.portable.ObjectImpl и реализующего интерфейс HelloApp.Hello. 
+  Этот класс играет роль stub'а и обеспечивает базовую функциональность CORBA 
+  для клиента. 
+  <LI>HelloHelper.java содержит код класса HelloHelper, обеспечивающего 
+  вспомогательную функциональность. Например, метод narrow() этого класса 
+  необходим для преобразования объектных ссылок (object references) CORBA, 
+  используемых для идентификации объектов, к типам, принятым в Java. Этот класс 
+  реализует чтение/запись данных различного типа в потоки CORBA. 
+  <LI>HelloHolder.java содержит код финального класса HelloHolder, реализующего 
+  интерфейс org.omg.CORBA.portable.Streamable. Этот класс включает открытую 
+  переменную типа Hello. Для аргументов типа out и inout операций языка IDL в 
+  этом классе выполняются преобразования, соответствующие семантике аргументов 
+  методов языка Java. Класс Holder обращается к методам класса Helper для 
+  выполнения операций чтения/записи в потоки CORBA. </LI></UL>
+<P></P>
+<CENTER><B>Создание сервера </B></CENTER>
+<P>Серверная часть приложения состоит из двух классов: собственно сервера и 
+серванта (servant). Сервант (назовем его HelloImpl) реализует IDL-интерфейс 
+Hello, при этом каждая сущность IDL-интерфейса Hello реализуется сущностью 
+класса HelloImpl. Сервант является подклассом класса HelloPOA, описание которого 
+сгенерировано компилятором idlj. </P>
+<P>Сервант содержит по одному методу для каждой IDL-операции (в нашем примере 
+это методы sayHello() и shutdown()). Методы серванта являются "обычными" 
+методами Java, все вспомогательные операции (общение с ORB, приведение 
+аргументов и результатов и т.п.) выполняются каркасом. </P>
+<P>Класс сервера содержит метод main, который выполняет следующие задачи: 
+<UL>
+  <LI>создание и инициализация экземпляра ORB; 
+  <LI>получение доступа к корневому объекту POA и активизация POAManager; 
+  <LI>создание экземпляра серванта и информирование ORB о нем; 
+  <LI>получение доступа к объекту CORBA в пространстве имен, в котором 
+  необходимо зарегестрировать новый объект CORBA; 
+  <LI>получение корневого пространства имен; 
+  <LI>регистрация нового объекта в пространстве имен под именем "Hello"; 
+  <LI>ожидание вызова нового объекта со стороны клиентов. </LI></UL>
+<P></P>
+<P>Ниже представлен пример кода (в файле HelloServer.java каталога Hello) 
+серверной части приложения. <PRE>// ----- Импорт всех необходимых пакетов -----
+
+// Пакет, сгенерированный компилятором idlj
+import HelloApp.*;
+
+// Пакет, необходимый для использования службы имен
+import org.omg.CosNaming.*;
+
+// Пакет, содержащий специальные исключения, генерируемые службой имен
+import org.omg.CosNaming.NamingContextPackage.*;
+
+// Пакет, содержащий классы, необходимые любому приложению CORBA
+import org.omg.CORBA.*;
+
+// Пакеты, содержащие классы, реализующие модель наследования переносимых серверов
+import org.omg.PortableServer.*;
+import org.omg.PortableServer.POA;
+
+// Пакет, содержащий классы, необходимые для инициализации ORB
+import java.util.Properties;
+
+// ----- Реализация класса-серванта -----
+
+// Сервант HelloImpl является подклассом класса HelloPOA и наследует
+// всю функциональность CORBA, сгенерированную для него компилятором
+class HelloImpl extends HelloPOA {
+  private ORB orb;	// Необходима для хранения текущего ORB (используется в методе shutdown)
+
+  public void setORB(ORB orb_val) {
+    orb = orb_val; 
+    }
+    
+  public String sayHello() {
+    return "\nHello, world !!\n";
+    }
+    
+  public void shutdown() {
+  // Использует метод org.omg.CORBA.ORB.shutdown(boolean) для завершения ORB,
+  //false означает, что завершение должно быть немедленным
+        orb.shutdown(false);
+    }
+  }
+
+// ----- Реализация класса-сервера -----
+
+public class HelloServer {
+// Сервер создает один или несколько объектов-серванов.
+// Сервант наследует интерфейсу, сгенерированному компилятором idlj,
+// и реально выполняет все операции этого интерфейса.
+
+    public static void main(String args[]) {
+    try{
+      // Создаем и инициализируем экземпляр ORB
+      ORB orb = ORB.init(args, null);
+
+      // Получаем доступ к Root POA и активируем POAManager
+      POA rootpoa = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+      rootpoa.the_POAManager().activate();
+
+      // Создаем объект сервант и регистрируем в нем объект ORB
+      HelloImpl helloImpl = new HelloImpl();
+      helloImpl.setORB(orb); 
+
+      // Получаем доступ к объекту серванта
+      org.omg.CORBA.Object ref = rootpoa.servant_to_reference(helloImpl);
+      Hello href = HelloHelper.narrow(ref);
+	  
+      // Получаем корневой контекст именования
+      org.omg.CORBA.Object objRef =
+          orb.resolve_initial_references("NameService");
+      // NamingContextExt является частью спецификации Interoperable
+      // Naming Service (INS)
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(objRef);
+
+      // Связывание идентификатора "Hello" и объекта серванта
+      String name = "Hello";
+      NameComponent path[] = ncRef.to_name( name );
+      ncRef.rebind(path, href);
+
+      System.out.println("HelloServer готов и ждет обращений ...");
+
+      // Ожидание обращений клиентов
+      orb.run();
+      } 	
+     catch (Exception e) {
+      System.err.println("ОШИБКА: " + e);	// Выводим сообщение об ошибке
+      e.printStackTrace(System.out);	// Выводим содержимое стека вызовов
+      };
+	  
+      System.out.println("HelloServer работу завершил ...");
+	
+  }
+}
+</PRE>
+<P></P>
+<P>Далее следуют пояснения отдельных строк кода.<BR><B>ORB orb = ORB.init(args, 
+null);</B><BR>Любому серверу CORBA необходим локальный объект ORB. Каждый сервер 
+создает экземпляр ORB и регистрирует в нем свои объекты-серванты, дабы ORB мог 
+найти объекты при получении соответствующих запросов. Передача аргументов args 
+метода main методу ORB.init позволяет задавать некоторые свойства ORB в 
+командной строке его вызова на 
+выполнение.<BR><B>rootpoa.the_POAManager().activate();</B><BR>Операция activate 
+делает состояние POAManager'а активным, заставляя ассоциированные с ним POA 
+начать обработку запросов. Каждый объект POA ассоциирован с одним объектом 
+POAManager, но объект POAManager может быть ассоциирован с несколькими объектами 
+POA.<BR><B>org.omg.CORBA.Object objRef = 
+orb.resolve_initial_references("NameService");</B><BR>Для обеспечения доступа 
+клиентов к операциям серванта сервер использует службу имен под названием Common 
+Object Services (COS). Серверу необходим доступ к службе имен для того, чтобы он 
+мог опубликовать ссылки на объекты, реализующие различные интерфейсы. В 
+настоящее время реализовано 2 типа службы имен: tnameserv (временная) и orbd 
+(временная и постоянная). Наш пример использует orbd. Аргумент в виде 
+"NameService" понимается службами имен обоих типов, при этом для orbd он 
+означает постоянный режим, а для tnameserv - временный. Для приведения orbd во 
+временный режим необходимо использовать "TNameService".<BR><B>NamingContextExt 
+ncRef = NamingContextExtHelper.narrow(objRef);</B><BR>objRef - "первородный" 
+(исходный) объект CORBA. Для его использования в качестве объекта 
+NamingContextExt необходимо "преобразование типа", выполняемое методом narrow() 
+вспомогательного класса NamingContextExtHelper, сгенерированного компилятором 
+idlj. После этого объект ncRef применяется для доступа к службе имен и 
+регистрации в ней сервера. </P>
+<CENTER><B>Компилирование сервера </B></CENTER>
+<P>Для компиляции сервера HelloServer.java выполнить следующую 
+последовательность действий: 
+<UL>
+  <LI>Сделать текущим каталог Hello. 
+  <LI>Вызвать на выполнение компилятор языка Java командой<BR>javac 
+  HelloServer.java HelloApp/*.java 
+  <LI>Проконтролировать появление в каталоге Hello файлов HelloServer.class и 
+  HelloImpl.class. </LI></UL>
+<P></P>
+<CENTER><B>Создание клиента </B></CENTER>
+<P>Ниже представлен пример кода (в файле HelloClient.java каталога Hello) 
+клиентской части приложения. <PRE>import HelloApp.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.CORBA.*;
+
+public class HelloClient {
+  static Hello helloImpl;
+
+  public static void main(String args[])
+    {
+      try{
+        // Создание и инициализация ORB
+	ORB orb = ORB.init(args, null);
+
+        // Получение корневого контекста именования
+        org.omg.CORBA.Object objRef = 
+	    orb.resolve_initial_references("NameService");
+        // NamingContextExt является частью спецификации Interoperable
+        // Naming Service (INS)
+        NamingContextExt ncRef = NamingContextExtHelper.narrow(objRef);
+ 
+        // Получение доступа к серверу по его имени
+        String name = "Hello";
+        helloImpl = HelloHelper.narrow(ncRef.resolve_str(name));
+
+        System.out.println("Получен доступ к объекту " + helloImpl);
+        System.out.println(helloImpl.sayHello());
+        helloImpl.shutdown();
+
+	} catch (Exception e) {
+          System.out.println("ОШИБКА : " + e) ;
+	  e.printStackTrace(System.out);
+	  }
+    }
+
+}
+ 
+</PRE>
+<P></P>
+<CENTER><B>Компилирование клиента </B></CENTER>
+<P>Для компиляции клиента HelloClient.java выполнить следующую 
+последовательность действий: 
+<UL>
+  <LI>Сделать текущим каталог Hello. 
+  <LI>Вызвать на выполнение компилятор языка Java командой<BR>javac 
+  HelloClient.java HelloApp/*.java 
+  <LI>Проконтролировать появление в каталоге Hello файла HelloClient.class. 
+</LI></UL>
+<P></P>
+<CENTER><B>Запуск приложения </B></CENTER>
+<P>Запустить на выполнение службу имен orbd командой<BR>orbd -ORBInitialPort 
+1050 -ORBInitialHost localhost &amp; </P>
+<P>Запустить на выполнение сервер командой<BR>java HelloServer -ORBInitialPort 
+1050 -ORBInitialHost localhost &amp; </P>
+<P>Выполнить клиента командой<BR>java HelloClient -ORBInitialPort 1050 
+-ORBInitialHost localhost </P>
+<CENTER>
+<H4>Практическая часть</H4></CENTER>
+<P>Базовое задание - разработать средствами языка программирования Java 
+распределенное приложение, имитирующее работу соты мобильной телефонной связи 
+при передаче коротких текстовых сообщений (SMS). Сота состоит из одной базовой 
+станции и произвольного количества мобильных телефонных трубок и реализует две 
+операции: 
+<UL>
+  <LI>регистрация трубки в соте (в базовой станции); 
+  <LI>пересылка строки текста от трубки к трубке через базовую станцию. </LI></UL>
+<P></P>
+<P>Имитатор базовой станции естественно реализовать в виде сервера. С 
+имитаторами трубок ситуация сложнее: при регистрации в базовой станции и отсылке 
+сообщений через станцию они играют роль клиентов, а при принятии сообщений от 
+станции - роль серверов. Ниже приводится пример реализации таких имитаторов 
+средствами CORBA. </P>
+<P>IDL-файл Cell.idl описания соты выглядит следующим образом. <PRE>/* Модуль для приложения "Сота" */
+module Cell {
+  /* Интерфейс обратного вызова трубки */
+  interface TubeCallback {
+    /* Принять сообщение message от номера fromNum */
+    long sendSMS (in string fromNum, in string message);
+    /* Вернуть свой номер */
+    string getNum();
+    };
+
+  /* Интерфейс базовой станции */
+  interface Station {
+    /* Зарегистрировать трубку с номером phoneNum, */
+    /* для обратного вызова трубки использовать ссылку TubeCallback */
+    long register (in TubeCallback objRef, in string phoneNum);
+    /* Отправить сообщение message от номера fromNum к номеру toNum */
+    long sendSMS (in string fromNum, in string toNum, in string message);
+    };
+
+  };
+</PRE>
+<P></P>
+<P>Для трансляции IDL-файла во вспомогательные файлы java используется 
+команда<BR>idlj -fall Cell.idl<BR><I>Примечание.</I> Ключевое слово -fall 
+означает создание в каталоге Cell как серверных, так и клиентских java-файлов. 
+Это ключевое слово может быть заменено на -fserver или -fclient.<BR>Компиляции 
+сгенерированных java-файлов выполняется командой<BR>javac Cell/*.java </P>
+<P>Файл StationServer.java, содержащий код серванта объекта "Базовая станция" и 
+сервера, может выглядить следующим образом.<BR><PRE>import Cell.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.CORBA.*;
+import org.omg.PortableServer.*;
+import org.omg.PortableServer.POA;
+
+import java.util.Properties;
+
+// Класс, реализующий IDL-интерфейс базовой станции
+class StationServant extends StationPOA {
+  // Вместо представленных ниже двух переменных здесь
+  // должен быть список пар "номер - объектная ссылка"
+  TubeCallback tubeRef;
+  String tubeNum;
+
+  // Метод регистрации трубки в базовой станции
+  public int register (TubeCallback objRef, String phoneNum) {
+     tubeRef = objRef;
+     tubeNum = phoneNum;
+     System.out.println("Станция: зарегистрирована трубка "+tubeNum);
+     return (1);
+     };
+
+  // Метод пересылки сообщения от трубки к трубке
+  public int sendSMS (String fromNum, String toNum, String message) {
+    System.out.println("Станция: трубка "+fromNum+" посылает сообщение "+toNum);
+    // Здесь должен быть поиск объектной ссылки по номеру toNum
+    tubeRef.sendSMS(fromNum, message);
+    return (1);
+    };
+  };
+
+// Класс, реализующий сервер базовой станции
+public class StationServer {
+
+  public static void main(String args[]) {
+    try{
+      // Создание и инициализация ORB
+      ORB orb = ORB.init(args, null);
+
+      // Получение ссылки и активирование POAManager
+      POA rootpoa = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+      rootpoa.the_POAManager().activate();
+
+      // Создание серванта для CORBA-объекта "базовая станция" 
+      StationServant servant = new StationServant();
+
+      // Получение объектной ссылки на сервант
+      org.omg.CORBA.Object ref = rootpoa.servant_to_reference(servant);
+      Station sref = StationHelper.narrow(ref);
+          
+      org.omg.CORBA.Object objRef = orb.resolve_initial_references("NameService");
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(objRef);
+
+      // Связывание объектной ссылки с именем
+      String name = "BaseStation";
+      NameComponent path[] = ncRef.to_name( name );
+      ncRef.rebind(path, sref);
+
+      System.out.println("Сервер готов и ждет ...");
+
+      // Ожидание обращений от клиентов (трубок)
+      orb.run();
+      } 
+     catch (Exception e) {
+        System.err.println("Ошибка: " + e);
+        e.printStackTrace(System.out);
+      };
+    };
+  };
+</PRE>Компиляции данного файла выполняется командой<BR>javac StationServer.java 
+<P></P>
+<P>Файл Tube.java, содержащий код имитатора телефонной трубки, может выглядить 
+следующим образом.<BR></P><PRE>import Cell.*;
+import org.omg.CosNaming.*;
+import org.omg.CORBA.*;
+import org.omg.PortableServer.*;
+import org.omg.PortableServer.POA;
+import java.io.*;
+
+// Класс вызова телефонной трубки
+class TubeCallbackServant extends TubeCallbackPOA {
+ String myNum;	// Номер трубки
+
+ // Конструктор класса
+ TubeCallbackServant (String num) {
+   myNum = num;
+   };
+
+ // Метод обработки принятого сообщения
+ public int sendSMS(String fromNum, String message) {
+    System.out.println(myNum+": принято сообщение от "+fromNum+": "+message);
+    return (0);
+    };
+ 
+ // Метод, возвращающий номер трубки
+ public String getNum() {
+    return (myNum);
+    };
+  };
+
+// Класс, используемый для создания потока управления
+class ORBThread extends Thread {
+  ORB myOrb;
+
+  // Конструктор класса
+  ORBThread(ORB orb) {
+    myOrb = orb;
+    };
+
+   // Метод запуска потока
+   public void run() {
+     myOrb.run();
+     };
+  };
+ 
+// Класс, имитирующий телефонную трубку
+public class Tube {
+
+  public static void main(String args[]) {
+    try {
+      String myNum = "1234";	// Номер трубки
+      // Создание и инициализация ORB
+      ORB orb = ORB.init(args, null);
+
+      //Создание серванта для IDL-интерфейса TubeCallback
+      POA rootPOA = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+      rootPOA.the_POAManager().activate();
+      TubeCallbackServant listener  = new TubeCallbackServant(myNum);
+      rootPOA.activate_object(listener);
+      // Получение ссылки на сервант
+      TubeCallback ref = TubeCallbackHelper.narrow(rootPOA.servant_to_reference(listener));
+      
+      // Получение контекста именования
+      org.omg.CORBA.Object objRef = orb.resolve_initial_references("NameService");
+      NamingContext ncRef = NamingContextHelper.narrow(objRef);
+      
+      // Преобразование имени базовой станции в объектную ссылку
+      NameComponent nc = new NameComponent("BaseStation", "");
+      NameComponent path[] = {nc};
+      Station stationRef = StationHelper.narrow(ncRef.resolve(path));
+
+      // Регистрация трубки в базовой станции
+      stationRef .register(ref, myNum);
+      System.out.println("Трубка зарегистрирована базовой станцией");
+
+      // Запуск ORB в отдельном потоке управления
+      // для прослушивания вызовов трубки
+      ORBThread orbThr = new ORBThread(orb);
+      orbThr.start();
+
+      // Бесконечный цикл чтения строк с клавиатуры и отсылки их
+      // базовой станции
+      BufferedReader inpt  = new BufferedReader(new InputStreamReader(System.in));
+      String msg;
+      while (true) {
+        msg = inpt.readLine();
+        stationRef .sendSMS(myNum, "7890", msg);
+        // Обратите внимание: номер получателя 7890 в описанной ранее
+        // реализации базовой станции роли не играет
+        }
+
+      } catch (Exception e) {
+	 e.printStackTrace();
+      };
+
+
+    };
+
+  };
+</PRE>Компиляции данного файла выполняется командой<BR>javac Tube.java 
+<P></P>
+<P>Запуск разработанного приложения на выполнение осуществляется следующей 
+последовательностью команд.<BR><PRE>orbd -ORBInitialPort 1050 -ORBInitialHost localhost &amp;
+java StationServer -ORBInitialPort 1050 -ORBInitialHost localhost &amp;
+java Tube -ORBInitialPort 1050 -ORBInitialHost localhost
+</PRE>
+<P></P>
+<CENTER><B>Варианты изменений базового задания </B></CENTER>
+<P>
+<OL>
+  <LI>Обеспечить передачу мультимедийных сообщений в виде двоичных файлов. 
+  <LI>Обеспечить передачу и воспроизведение изображений. 
+  <LI>Реализовать передачу коротких текстовых сообщений между трубками в режиме 
+  PTT, когда трубки соединяются через базовую станцию, а потом общаются напрямую 
+  в режиме рации. 
+  <LI>Реализовать на базовой станции учет и выставление счетов клиентам-трубкам. 
+
+  <LI>Обеспечить на базовой станции поддержку СОРМ (ведение журнала переданных 
+  сообщений). 
+  <LI>Обеспечить взаимодействие двух сот в таком режиме: если базовая станция 
+  обнаруживает, что трубка с номером получателя сообщения в ней не 
+  зарегистрирована, то она направляет это сообщение соседней базовой станции. 
+  <LI>Реализовать взаимодействие произвольного количества сот. При этом для 
+  хранения информации о зарегистрированных трубках и их принадлежности сотам 
+  использовать единый сервер базы данных. </LI></OL>
+<P></P>
+<CENTER><B>Порядок выполнения лабораторной работы </B></CENTER>
+<P>
+<OL>
+  <LI>Из студентов группы сформировать бригады численностью 3...5 человек. В 
+  каждой бригаде назначить бригадира, в обязанности которого входит 
+  программирование имитатора базовой станции и общение с другими бригадирами. 
+  Остальные члены бригады создают имитаторы трубок в стиле собственных мобильных 
+  телефонов. 
+  <LI>Каждая бригада демонстрирует работу разработанного приложения и после 
+  этого получает задание на его изменение. 
+  <LI>Каждая бригада демонстрирует работу изменного приложения. 
+  <LI>Каждый студент оформляет отчет, содержащий тексты разработанных им 
+  программ. </LI></OL>
+<P></P></BODY></HTML>

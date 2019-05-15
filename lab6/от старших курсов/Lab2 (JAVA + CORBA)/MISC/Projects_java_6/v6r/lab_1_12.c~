@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+
+int main(int argc, char * argv[])
+{
+
+	char* firstFilename = argv[1];
+	char* secondFilename = argv[2];
+
+	int fd1[2], fd2[2];
+	pid_t pidFirstChild, pidSecondChild;
+	ssize_t nbytes;
+	char readbuffer[80];
+	char filename[] = "Lorem.txt";
+	char currentFilename[256];
+
+	FILE *file;
+	
+	if(pipe(fd1) == -1 || pipe(fd2) == -1)
+	{
+		perror("Pipe call error");
+	}
+
+	pidFirstChild = fork();
+	pidSecondChild = fork();
+	
+	if(pidFirstChild == -1 || pidSecondChild == -1){
+		perror("Fork call error");
+		exit(1);
+	}
+
+	if(pidFirstChild == 0){
+		int sig;
+		sigset_t newset;
+		sigemptyset(&newset);
+		sigaddset(&newset, SIGHUP);
+		sigprocmask(SIG_BLOCK, &newset, 0);
+		char r[2];
+		r[1] = '\0';
+
+		while(!sigwait(&newset, &sig)){
+			close(fd1[1]);
+			nbytes = read(fd1[0], currentFilename, sizeof(currentFilename));
+			printf("Current file name: %s\n", currentFilename);
+
+			if(currentFilename == "") continue;
+
+			if((file = fopen(currentFilename, "r")) == NULL){
+				perror("Open file error");
+				exit(1);
+			}
+
+			char c;
+			while((c = fgetc(file)) != EOF){
+				r[0] = toupper(c);				
+				write(1, r, 2);		
+			}
+		}
+		exit(0);
+	}
+
+	if(pidSecondChild == 0){
+		int sig;
+		sigset_t newset;
+		sigemptyset(&newset);
+		sigaddset(&newset, SIGHUP);
+		sigprocmask(SIG_BLOCK, &newset, 0);
+		char l[2];
+		l[1] = '\0';
+
+		while(!sigwait(&newset, &sig)){
+			close(fd2[1]);
+			nbytes = read(fd2[0], currentFilename, sizeof(currentFilename));
+			printf("Current file name: %s\n", currentFilename);
+
+			if(currentFilename == "") continue;
+
+			if((file = fopen(currentFilename, "r")) == NULL){
+				perror("Open file error");
+				exit(1);
+			}
+
+			char c;
+			while((c = fgetc(file)) != EOF){
+				l[0] = tolower(c);				
+				write(1, l, 2);		
+			}
+		}
+		exit(0);
+	}
+
+	if(pidFirstChild > 0 && pidSecondChild > 0){
+		close(fd1[0]);
+		close(fd2[0]);
+
+		write(fd1[1], firstFilename, (strlen(firstFilename) + 1));
+		write(fd2[1], secondFilename, (strlen(secondFilename) + 1));
+		sleep(1);
+		kill(pidFirstChild, SIGHUP);
+		kill(pidSecondChild, SIGHUP);
+		strcpy(currentFilename, "");
+
+		while(1){
+			strcpy(secondFilename, firstFilename);
+			strcpy(firstFilename, currentFilename);
+
+			printf("First: %s Second: %s\n", firstFilename, secondFilename);		
+
+			write(fd1[1], firstFilename, (strlen(firstFilename) + 1));
+			write(fd2[1], secondFilename, (strlen(secondFilename) + 1));
+			sleep(1);
+			kill(pidFirstChild, SIGHUP);
+			kill(pidSecondChild, SIGHUP);
+
+			gets(currentFilename);
+			if(strcmp(currentFilename, "exit") == 0){
+				sleep(0.5);
+				kill(pidFirstChild, SIGTERM);
+				kill(pidSecondChild, SIGTERM);
+				break;
+			}
+		}
+		exit(0);
+	}
+	return 0;
+}

@@ -1,0 +1,21 @@
+module Cell{
+	typedef sequence<octet> bytes;
+
+	exception unauthorisedException{};
+	exception duplicateTubeException{};
+	exception lowBalanceException{};
+
+	interface Station {
+		boolean registerTube(in string number);
+		boolean sendMessage(in string fromNumber, in string toNumber, in string text);	    
+		boolean sendInterMessage(in string fromNumber, in string toNumber, in string fromStation, in string text);	    
+	};
+	interface Tube {
+		void showMessage(in string fromNumber, in string text);
+	};
+	interface DataBase{
+		boolean registerStation(in string stationName);
+		boolean registerTube(in string stationName, in string tubeName);
+		string getStationByTube(in string tubeName, in string receiverName);
+	};		
+};
